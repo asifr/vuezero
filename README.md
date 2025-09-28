@@ -1,6 +1,18 @@
 # vuezero
 
-This bundles Vue 3 with Valibot and up-fetch as a single ESM file for use in the browser. This is useful for quickly prototyping Vue apps without a build step.
+This bundles [Vue 3](https://vuejs.org/) with [Valibot](https://valibot.dev/) for schema validation and [up-fetch](https://github.com/L-Blondy/up-fetch) as a single ESM file for use in the browser. This is useful for quickly prototyping Vue apps without a build step.
+
+All Vue, Valibot and up-fetch APIs are exposed:
+
+```html
+<script type="module">
+import { createApp, ref, computed, watch, v, up, upfetch, createQueryPlugin } from './dist/vuezero.esm.js';
+</script>
+```
+
+up-fetch integrates nicely with Valibot for typesafe request/response validation. vuezero leverages both libraries in the `v-query` directive for making reactive SQL queries to your backend. This is provided as a plugin via `createQueryPlugin`. This plugin is optional and you can use vuezero without it.
+
+## Basic Usage
 
 ```html
 <!DOCTYPE html>
@@ -53,11 +65,13 @@ This bundles Vue 3 with Valibot and up-fetch as a single ESM file for use in the
 </html>
 ```
 
-## Query Plugin
+## Query plugin
 
 The `createQueryPlugin` provides a `v-query` directive for making reactive SQL queries to your backend. Each directive creates isolated reactive state with `$loading`, `$error`, and `$data` properties.
 
 Valibot is used for schema validation of query response so you can be sure the SQL response matches your expectations.
+
+This is an opinionated plugin that assumes your backend exposes a read-only SQL query API endpoint. My use case is internal tools and dashboards where the backend is a very simple JSON API over a SQL database and the frontend is an HTML file making direct requests to the API.
 
 ### Basic Usage
 
@@ -142,6 +156,7 @@ const searchQuery = computed(() => ({
         id: v.number(),
         name: v.string()
     })),
+    // this is a function that takes params and returns the SQL string
     sql: (params) => `SELECT * FROM users WHERE name ILIKE '%${params.term}%'`,
     params: { term: searchTerm.value }
 }));
