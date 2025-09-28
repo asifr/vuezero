@@ -21,43 +21,43 @@ function debounce(fn, ms) {
     };
 }
 
-// API Plugin
-export function createApiPlugin({ url, debounceMs = 300 } = {}) {
+// Query Plugin
+export function createQueryPlugin({ url, debounceMs = 300 } = {}) {
     const API_URL = url || "/api/v1/sql";
 
     return {
         install(app) {
-            app.directive("api", {
+            app.directive("query", {
                 mounted(el, binding, vnode) {
                     const comp = vnode.ctx;
 
                     // Local reactive state for this directive instance
                     const local = app.reactive({
-                        $api: null,
+                        $data: null,
                         $loading: false,
                         $error: null,
                     });
 
-                    async function runQuery(schema, vars = {}) {
+                    async function runQuery(schema, params = {}) {
                         try {
                             local.$loading = true;
                             local.$error = null;
 
                             const sql =
                                 typeof schema.sql === "function"
-                                    ? schema.sql(vars)
+                                    ? schema.sql(params)
                                     : schema.sql;
 
                             const data = await upfetch(API_URL, {
                                 method: "POST",
-                                json: { sql: sql, params: vars },
+                                json: { sql: sql, params: params },
                                 schema, // validate with valibot
                             });
 
-                            local.$api = data;
+                            local.$data = data;
                         } catch (err) {
                             local.$error = err;
-                            local.$api = null;
+                            local.$data = null;
                         } finally {
                             local.$loading = false;
                         }
@@ -68,14 +68,14 @@ export function createApiPlugin({ url, debounceMs = 300 } = {}) {
                     // Initial fetch
                     debouncedRun(
                         binding.value.schema || binding.value,
-                        binding.value.vars || {}
+                        binding.value.params || {}
                     );
 
-                    // Re-run when vars change (reactive watch)
+                    // Re-run when params change (reactive watch)
                     vnode.effect.run(() => {
                         debouncedRun(
                             binding.value.schema || binding.value,
-                            binding.value.vars || {}
+                            binding.value.params || {}
                         );
                     });
 

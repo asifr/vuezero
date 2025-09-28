@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vue Query Plugin Demo</title>
+</head>
+
+<body>
+    <div id="app">
+        <div class="container">
+            <!-- Static SQL Query Example -->
+            <div class="query-section">
+                <h2>Static SQL Query</h2>
+                <div v-query="usersQuery">
+                    <div v-if="$loading" class="loading">Loading users...</div>
+                    <div v-if="$error" class="error">Error: <span v-text="$error.message"></span></div>
+                    <div v-if="$data" class="success">
+                        <h3>Users Retrieved</h3>
+                        <div class="results">
+                            <pre v-text="JSON.stringify($data, null, 2)"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dynamic SQL Query with Variables -->
+            <div class="query-section">
+                <h2>Dynamic SQL Query with Variables</h2>
+                <div>
+                    <label>User ID: </label>
+                    <input v-model.number="userId" type="number" min="1" placeholder="Enter user ID">
+                    <label>Min Age: </label>
+                    <input v-model.number="minAge" type="number" min="0" placeholder="Minimum age">
+                </div>
+
+                <div v-query="userQueryWithVars">
+                    <div v-if="$loading" class="loading">Loading user data...</div>
+                    <div v-if="$error" class="error">Error: <span v-text="$error.message"></span></div>
+                    <div v-if="$data" class="success">
+                        <h3>User Data Retrieved</h3>
+                        <div class="results">
+                            <pre v-text="JSON.stringify($data, null, 2)"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Function-based SQL Query -->
+            <div class="query-section">
+                <h2>Function-based SQL Query</h2>
+                <div>
+                    <label>Search Term: </label>
+                    <input v-model="searchTerm" placeholder="Search users by name">
+                </div>
+
+                <div v-query="searchQuery">
+                    <div v-if="$loading" class="loading">Searching...</div>
+                    <div v-if="$error" class="error">Error: <span v-text="$error.message"></span></div>
+                    <div v-if="$data" class="success">
+                        <h3>Search Results</h3>
+                        <div class="results">
+                            <pre v-text="JSON.stringify($data, null, 2)"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="query-section">
+                <h2>How it Works</h2>
+                <p>Each <code>v-query</code> directive creates its own isolated reactive state:</p>
+                <ul>
+                    <li><strong>$loading:</strong> Boolean indicating if a query is in progress</li>
+                    <li><strong>$error:</strong> Error object if the query failed, null otherwise</li>
+                    <li><strong>$data:</strong> The validated response data, null if no data or error</li>
+                </ul>
+                <p>These variables are only accessible within the scope of each <code>v-query</code> directive, not globally in the component.</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createApp, ref, computed, v } from './dist/vuezero.esm.js';
+        import { createQueryPlugin } from './dist/vuezero.esm.js';
+
+        const app = createApp({
+            setup() {
+                // Reactive variables
+                const userId = ref(1);
+                const minAge = ref(18);
+                const searchTerm = ref('');
+
+                // Static query example
+                const usersQuery = {
+                    schema: v.array(v.object({
+                        id: v.number(),
+                        name: v.string(),
+                        email: v.string()
+                    })),
+                    sql: "SELECT id, name, email FROM users LIMIT 10"
+                };
+
+                // Dynamic query with variables
+                const userQueryWithVars = computed(() => ({
+                    schema: v.array(v.object({
+                        id: v.number(),
+                        name: v.string(),
+                        age: v.number(),
+                        email: v.string()
+                    })),
+                    sql: "SELECT * FROM users WHERE id = ? AND age >= ?",
+                    vars: { userId: userId.value, minAge: minAge.value }
+                }));
+
+                // Function-based SQL query
+                const searchQuery = computed(() => ({
+                    schema: v.array(v.object({
+                        id: v.number(),
+                        name: v.string(),
+                        email: v.string()
+                    })),
+                    sql: (vars) => `SELECT * FROM users WHERE name ILIKE '%${vars.term}%' LIMIT 20`,
+                    vars: { term: searchTerm.value }
+                }));
+
+                return {
+                    userId,
+                    minAge,
+                    searchTerm,
+                    usersQuery,
+                    userQueryWithVars,
+                    searchQuery
+                };
+            }
+        });
+
+        // Install the API plugin
+        app.use(createQueryPlugin({
+            url: '/api/v1/sql',  // Your SQL API endpoint
+            debounceMs: 500      // Debounce requests by 500ms
+        }));
+
+        app.mount('#app');
+    </script>
+</body>
+
+</html>

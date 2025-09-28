@@ -2,20 +2,6 @@
 
 This bundles Vue 3 with Valibot and up-fetch as a single ESM file for use in the browser. This is useful for quickly prototyping Vue apps without a build step.
 
-To install dependencies:
-
-```bash
-bun install
-```
-
-To build:
-
-```bash
-source ./build.sh
-```
-
-Example:
-
 ```html
 <!DOCTYPE html>
 <html lang="en">
@@ -66,3 +52,139 @@ Example:
 
 </html>
 ```
+
+## Query Plugin
+
+The `createQueryPlugin` provides a `v-query` directive for making reactive SQL queries to your backend. Each directive creates isolated reactive state with `$loading`, `$error`, and `$data` properties.
+
+Valibot is used for schema validation of query response so you can be sure the SQL response matches your expectations.
+
+### Basic Usage
+
+```js
+import { createQueryPlugin } from './dist/vuezero.esm.js';
+
+app.use(createQueryPlugin({
+    url: '/api/v1/sql',  // Your SQL API endpoint
+    debounceMs: 500      // Debounce requests by 500ms
+}));
+```
+
+The API endpoint should accept POST requests with JSON body:
+```json
+{
+    "sql": "SELECT * FROM users WHERE id = ?",
+    "params": { "id": 1 }
+}
+```
+
+The response should be JSON data that matches the provided Valibot schema.
+
+### Examples
+
+**Static SQL Query:**
+```html
+<div v-query="usersQuery">
+    <div v-if="$loading">Loading users...</div>
+    <div v-if="$error">Error: <span v-text="$error.message"></span></div>
+    <div v-if="$data">
+        <pre v-text="JSON.stringify($data, null, 2)"></pre>
+    </div>
+</div>
+```
+
+```js
+const usersQuery = {
+    schema: v.array(v.object({
+        id: v.number(),
+        name: v.string(),
+        email: v.string()
+    })),
+    sql: "SELECT id, name, email FROM users LIMIT 10"
+};
+```
+
+**Dynamic Query with Variables:**
+
+A real-world example where user inputs are used to parameterize the SQL query.
+
+```html
+<div>
+    <input v-model.number="userId" type="number" placeholder="User ID">
+    <input v-model.number="minAge" type="number" placeholder="Min Age">
+</div>
+
+<div v-query="userQuery">
+    <div v-if="$loading">Loading...</div>
+    <div v-if="$error">Error: <span v-text="$error.message"></span></div>
+    <div v-if="$data">
+        <pre v-text="JSON.stringify($data, null, 2)"></pre>
+    </div>
+</div>
+```
+
+```js
+const userQuery = computed(() => ({
+    schema: v.array(v.object({
+        id: v.number(),
+        name: v.string(),
+        age: v.number()
+    })),
+    sql: "SELECT * FROM users WHERE id = ? AND age >= ?",
+    params: { userId: userId.value, minAge: minAge.value }
+}));
+```
+
+**Function-based SQL:**
+```js
+const searchQuery = computed(() => ({
+    schema: v.array(v.object({
+        id: v.number(),
+        name: v.string()
+    })),
+    sql: (params) => `SELECT * FROM users WHERE name ILIKE '%${params.term}%'`,
+    params: { term: searchTerm.value }
+}));
+```
+
+**Parameters:**
+The `params` property can be either an object (dict) or an array (list):
+```js
+// Object/dict - for named parameters
+params: { userId: 1, minAge: 18 }
+
+// Array/list - for positional parameters
+params: [1, 18]
+```
+
+### API Endpoint
+
+The plugin expects your API endpoint to:
+- Accept POST requests
+- Receive JSON: `{ sql: string, params: object | array }`
+- Return data that validates against the provided Valibot schema
+
+### Reactive State
+
+Each `v-query` directive provides isolated reactive state:
+- **$loading**: Boolean indicating if query is in progress
+- **$error**: Error object if query failed, null otherwise
+- **$data**: Validated response data, null if no data or error
+
+These variables are only accessible within the scope of each `v-query` directive.
+
+## Building for distribution
+
+Install dependencies:
+
+```bash
+bun install
+```
+
+Build the ESM bundle:
+
+```bash
+source ./build.sh
+```
+
+This will create `dist/vuezero.esm.js` which you can include in your HTML.
