@@ -50,7 +50,7 @@ export function createApiPlugin({ url, debounceMs = 300 } = {}) {
 
                             const data = await upfetch(API_URL, {
                                 method: "POST",
-                                json: { sql: sql },
+                                json: { sql: sql, params: vars },
                                 schema, // validate with valibot
                             });
 
